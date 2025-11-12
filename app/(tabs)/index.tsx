@@ -1,4 +1,5 @@
-// Sākuma ekrānam pielabots izkārtojums: virsraksts starp LV/EN un pogām.
+// app/(tabs)/index.tsx
+// ==================== Box Breathing — Zelta Standarts (LV/EN) ====================
 
 import React, {
   Dispatch,
@@ -11,6 +12,7 @@ import React, {
 } from "react";
 import {
   Animated,
+  Easing,
   Platform,
   Pressable,
   SafeAreaView,
@@ -38,7 +40,7 @@ const TXT = {
     s: "s",
     running: "Darbojas",
     paused: "Pauze",
-    resume: "Start",
+    resume: "Sākt",
     pause: "Pauze",
     reset: "Restartēt",
     // Onboarding teksti
@@ -47,11 +49,11 @@ const TXT = {
     ob2_t: "Kā lietot",
     ob2_b: "Seko līnijai gar kvadrāta malu un elpo tās ritmā.",
     ob3_t: "Sāc droši",
-    ob3_b: "Izvēlies 4–4–4–4 vai 5–5–5–5 un nospied Start.",
+    ob3_b: "Izvēlies 4–4–4–4 vai 5–5–5–5 un nospied “Sākt”.",
     next: "Tālāk",
     back: "Atpakaļ",
-    start: "Start",
-    info: "Info",
+    start: "Sākt",
+    info: "Par metodi",
   },
   en: {
     appTitle: "Box Breathing",
@@ -64,17 +66,16 @@ const TXT = {
     resume: "Start",
     pause: "Pause",
     reset: "Reset",
-    // Onboarding texts
     ob1_t: "What is it?",
     ob1_b: "Box Breathing — 4 phases: inhale, hold, exhale, hold.",
     ob2_t: "How to use",
     ob2_b: "Follow the line along the square edge and breathe with it.",
     ob3_t: "Get started",
-    ob3_b: "Pick 4–4–4–4 or 5–5–5–5 and press Start.",
+    ob3_b: "Choose 4–4–4–4 or 5–5–5–5 and press “Start”.",
     next: "Next",
     back: "Back",
     start: "Start",
-    info: "Info",
+    info: "About",
   },
 } as const;
 
@@ -100,13 +101,13 @@ const LangBar: React.FC = () => {
   );
 };
 
-/* ===================== SAKNES MARŠRUTS ===================== */
+/* ===================== MARŠRUTS ===================== */
 
 type Route = "home" | "onboarding" | "main";
 
 export default function Root() {
-  const [lang, setLang] = useState<Lang>("lv"); // pēc noklusējuma LV
-  const [route, setRoute] = useState<Route>("home"); // sākam ar Home
+  const [lang, setLang] = useState<Lang>("lv");
+  const [route, setRoute] = useState<Route>("home");
 
   return (
     <I18nCtx.Provider value={{ lang, setLang }}>
@@ -121,7 +122,7 @@ export default function Root() {
   );
 }
 
-/* ===================== SĀKUMA EKRĀNS (AR LABOJUMIEM) ===================== */
+/* ===================== SĀKUMA EKRĀNS ===================== */
 
 const HomeScreen: React.FC<{ onStart: () => void; onInfo: () => void }> = ({
   onStart,
@@ -132,47 +133,23 @@ const HomeScreen: React.FC<{ onStart: () => void; onInfo: () => void }> = ({
 
   return (
     <View style={styles.screenWrap}>
-      {/* Valodas josla augšā */}
       <View style={styles.langLevelSpacer} />
       <LangBar />
-
-      {/* Virsraksts STARP valodām un pogām, lielāks */}
       <Text style={styles.headerHome}>{t.appTitle}</Text>
 
-      {/* Divas pogas centrā */}
       <View style={styles.homeCenter}>
         <Pressable onPress={onStart} style={styles.primaryBtn}>
-          <Text
-            style={{
-              color: "#fff",
-              fontSize: 18,
-              ...(Platform.OS === "android"
-                ? { fontFamily: "sans-serif-medium" }
-                : { fontWeight: "700" }),
-            }}
-          >
-            {t.start}
-          </Text>
+          <Text style={styles.primaryText}>{t.start}</Text>
         </Pressable>
-
         <Pressable onPress={onInfo} style={styles.ghostBtn}>
-          <Text
-            style={{
-              color: "#e2e8f0",
-              ...(Platform.OS === "android"
-                ? { fontFamily: "sans-serif-medium" }
-                : { fontWeight: "600" }),
-            }}
-          >
-            {t.info}
-          </Text>
+          <Text style={styles.ghostText}>{t.info}</Text>
         </Pressable>
       </View>
     </View>
   );
 };
 
-/* ===================== ONBOARDING (3 lapas bez skrolla) ===================== */
+/* ===================== ONBOARDING ===================== */
 
 const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   const { lang } = useI18n();
@@ -191,8 +168,6 @@ const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   return (
     <View style={styles.screenWrap}>
       <Text style={styles.header}>{t.appTitle}</Text>
-
-      {/* Valodas slēdzis — tajā pašā vertikālajā līmenī */}
       <View style={styles.langLevelSpacer} />
       <LangBar />
 
@@ -207,102 +182,152 @@ const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           onPress={goBack}
           style={[styles.ghostBtn, step === 0 && { opacity: 0.35 }]}
         >
-          <Text
-            style={{
-              color: "#e2e8f0",
-              ...(Platform.OS === "android"
-                ? { fontFamily: "sans-serif-medium" }
-                : { fontWeight: "600" }),
-            }}
-          >
-            {t.back}
-          </Text>
+          <Text style={styles.ghostText}>{t.back}</Text>
         </Pressable>
 
         <Pressable onPress={step === 2 ? onDone : goNext} style={styles.primaryBtn}>
-          <Text
-            style={{
-              color: "#fff",
-              fontSize: 16,
-              ...(Platform.OS === "android"
-                ? { fontFamily: "sans-serif-medium" }
-                : { fontWeight: "700" }),
-            }}
-          >
-            {step === 2 ? t.start : t.next}
-          </Text>
+          <Text style={styles.primaryText}>{step === 2 ? t.start : t.next}</Text>
         </Pressable>
       </View>
     </View>
   );
 };
 
-/* ===================== GALVENĀ LAPA (ZELTA STANDARTS — NEMAINĀM) ===================== */
+/* ===================== GALVENĀ LAPA — ZELTA STANDARTS ===================== */
 
 const MainScreen: React.FC = () => {
   const { lang } = useI18n();
   const t = TXT[lang];
 
-  const [preset, setPreset] = useState<number>(4);
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [phaseIndex, setPhaseIndex] = useState<number>(0); // 0=TOP (start no kreisā augšējā)
-  const [leftSec, setLeftSec] = useState<number>(4);
+  const [preset, setPreset] = useState(4);
+  const [isRunning, setIsRunning] = useState(false);
+  const [phaseIndex, setPhaseIndex] = useState(0); // 0: TOP
+  const [leftSec, setLeftSec] = useState(4);
 
-  // TOP → RIGHT → BOTTOM → LEFT (zelta standarts)
+  // Fāzes (TOP → RIGHT → BOTTOM → LEFT)
   const phases = useMemo(
     () => [
       { key: "inhale", label: lang === "lv" ? "Ieelpa" : "Inhale", secs: preset }, // 0: TOP
-      { key: "hold1", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },   // 1: RIGHT
-      { key: "exhale", label: lang === "lv" ? "Izelpa" : "Exhale", secs: preset }, // 2: BOTTOM
-      { key: "hold2", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },   // 3: LEFT
+      { key: "hold1", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },  // 1: RIGHT
+      { key: "exhale", label: lang === "lv" ? "Izelpa" : "Exhale", secs: preset },// 2: BOTTOM
+      { key: "hold2", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },  // 3: LEFT
     ],
     [preset, lang]
   );
 
-  // Viena 0..1 skala aktīvās malas pieaugumam
+  // === Анимация/таймер через дедлайн, без дрейфа ===
   const edgeAnim = useRef(new Animated.Value(0)).current;
-  const startEdge = (secs: number) => {
-    edgeAnim.stopAnimation();
-    edgeAnim.setValue(0);
-    Animated.timing(edgeAnim, { toValue: 1, duration: secs * 1000, useNativeDriver: false }).start();
+  const animHandle = useRef<Animated.CompositeAnimation | null>(null);
+
+  const isRunningRef = useRef(isRunning);
+  const phaseIdxRef = useRef(phaseIndex);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  useEffect(() => { phaseIdxRef.current = phaseIndex; }, [phaseIndex]);
+
+  const phaseEndTsRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+
+  // Точный “визуальный” тикающий счётчик (без setInterval)
+  const tick = () => {
+    const now = Date.now();
+    const msLeft = Math.max(0, phaseEndTsRef.current - now);
+    // округляем вверх, чтобы на старте фазы был «4», а не «3»
+    const secsLeft = Math.min(phases[phaseIdxRef.current].secs, Math.ceil(msLeft / 1000));
+    setLeftSec(secsLeft);
+    if (msLeft <= 0) return; // завершение обработает .start callback
+    rafRef.current = requestAnimationFrame(tick);
   };
 
-  // Presetu maiņa → korekts reset
-  const setPresetAndReset = (n: number) => {
+  const stopTick = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  };
+
+  // Запуск конкретной фазы (index)
+  const startPhase = (idx: number, remainingMs?: number) => {
+    const secs = phases[idx].secs;
+
+    setPhaseIndex(idx);
+    // если передали точные миллисекунды — используем их; иначе полная длительность
+    const durationMs = remainingMs ?? secs * 1000;
+
+    // сброс перед стартом
+    stopTick();
+    edgeAnim.stopAnimation();
+    edgeAnim.setValue(0);
+
+    // дедлайн и тикер
+    phaseEndTsRef.current = Date.now() + durationMs;
+    rafRef.current = requestAnimationFrame(tick);
+
+    // анимация
+    animHandle.current?.stop();
+    animHandle.current = Animated.timing(edgeAnim, {
+      toValue: 1,
+      duration: durationMs,
+      easing: Easing.linear,
+      useNativeDriver: false, // width/height — только JS
+    });
+
+    animHandle.current.start(({ finished }) => {
+      if (!finished || !isRunningRef.current) return;
+      const next = (idx + 1) % phases.length;
+      startPhase(next); // бесшовный переход к следующей стороне
+    });
+  };
+
+  // Старт/пауза
+  const toggleRun = () => {
+    if (!isRunning) {
+      // RESUME / START
+      const now = Date.now();
+      let remain = phaseEndTsRef.current - now;
+      // если запуск с нуля или после reset/preset — берём полную фазу
+      if (remain <= 0 || remain > phases[phaseIdxRef.current].secs * 1000) {
+        remain = phases[phaseIdxRef.current].secs * 1000;
+      }
+      setIsRunning(true);
+      startPhase(phaseIdxRef.current, remain);
+    } else {
+      // PAUSE
+      setIsRunning(false);
+      animHandle.current?.stop();
+      stopTick();
+      const now = Date.now();
+      const msLeft = Math.max(0, phaseEndTsRef.current - now);
+      // фиксируем оставшиеся секунды, чтобы при паузе цифра не прыгала
+      setLeftSec(Math.min(phases[phaseIdxRef.current].secs, Math.ceil(msLeft / 1000)));
+    }
+  };
+
+  // Reset
+  const doReset = () => {
     setIsRunning(false);
+    setPhaseIndex(0);
+    setLeftSec(preset);
+    stopTick();
+    edgeAnim.stopAnimation();
+    edgeAnim.setValue(0);
+    phaseEndTsRef.current = 0;
+  };
+
+  // Смена пресета — мягкий reset
+  const setPresetAndReset = (n: number) => {
     setPreset(n);
+    // после изменения preset сразу в исходное
+    setIsRunning(false);
     setPhaseIndex(0);
     setLeftSec(n);
+    stopTick();
     edgeAnim.stopAnimation();
     edgeAnim.setValue(0);
+    phaseEndTsRef.current = 0;
   };
 
-  // Fāzes maiņa → sekundes + animācija
-  useEffect(() => {
-    const secs = phases[phaseIndex].secs;
-    setLeftSec(secs);
-    if (isRunning) startEdge(secs);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phaseIndex, phases, isRunning]);
-
-  // Sekunžu taimeris
-  useEffect(() => {
-    if (!isRunning) return;
-    const id = setInterval(() => {
-      setLeftSec((s) => {
-        if (s <= 1) {
-          const next = (phaseIndex + 1) % phases.length;
-          setPhaseIndex(next);
-          return phases[next].secs;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isRunning, phaseIndex, phases]);
-
-  // Kvadrāta ģeometrija
-  const BOX = 220, BORDER = 6, FULL = BOX + BORDER * 2;
+  // Геометрия квадрата
+  const BOX = 220, BORDER = 10, FULL = BOX + BORDER * 2;
   const len = edgeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, FULL] });
 
   return (
@@ -321,7 +346,7 @@ const MainScreen: React.FC = () => {
       {/* Valoda — starp presetu blokiem un kvadrātu */}
       <LangBar />
 
-      {/* Kvadrāts ar perimetra animāciju (zelta standarts) */}
+      {/* Kvadrāts ar perimetra animāciju */}
       <View style={styles.centeredGrow}>
         <View style={[styles.boxWrap, { width: FULL, height: FULL }]}>
           <View style={[styles.boxCore, { width: BOX, height: BOX }]} />
@@ -358,25 +383,12 @@ const MainScreen: React.FC = () => {
 
       {/* Vadība */}
       <View style={styles.rowBetween}>
-        <GhostButton
-          label={isRunning ? t.pause : t.resume}
-          onPress={() => {
-            const next = !isRunning;
-            setIsRunning(next);
-            if (next) startEdge(phases[phaseIndex].secs);
-            else edgeAnim.stopAnimation();
-          }}
-        />
-        <GhostButton
-          label={t.reset}
-          onPress={() => {
-            setIsRunning(false);
-            setPhaseIndex(0);
-            setLeftSec(preset);
-            edgeAnim.stopAnimation();
-            edgeAnim.setValue(0);
-          }}
-        />
+        <Pressable onPress={toggleRun} style={styles.ghostBtn}>
+          <Text style={styles.ghostText}>{isRunning ? t.pause : t.resume}</Text>
+        </Pressable>
+        <Pressable onPress={doReset} style={styles.ghostBtn}>
+          <Text style={styles.ghostText}>{t.reset}</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -397,21 +409,6 @@ const Pill: React.FC<{ label: string; selected: boolean; onPress: () => void }> 
   </Pressable>
 );
 
-const GhostButton: React.FC<{ label: string; onPress: () => void }> = ({ label, onPress }) => (
-  <Pressable onPress={onPress} style={styles.ghostBtn}>
-    <Text
-      style={{
-        color: "#e2e8f0",
-        ...(Platform.OS === "android"
-          ? { fontFamily: "sans-serif-medium" }
-          : { fontWeight: "600" }),
-      }}
-    >
-      {label}
-    </Text>
-  </Pressable>
-);
-
 /* ===================== STILI ===================== */
 
 const styles = StyleSheet.create({
@@ -419,7 +416,7 @@ const styles = StyleSheet.create({
 
   screenWrap: { flex: 1, padding: 20 },
 
-  // vispārīgais virsraksts (Onboarding/Main)
+  // virsraksts (Onboarding/Main)
   header: {
     color: "#fff",
     fontSize: 22,
@@ -428,17 +425,16 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
 
-  // JAUNAIS virsraksts tikai Home: lielāks un starp valodām/pogām
+  // virsraksts tikai Home
   headerHome: {
     color: "#fff",
-    fontSize: 30,
+    fontSize: 40,
     fontWeight: "700",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 100,
     marginBottom: 16,
   },
 
-  /* --- Preseti un valodas līmenis --- */
   rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -461,7 +457,7 @@ const styles = StyleSheet.create({
   },
   pillText: { color: "#cbd5e1", fontWeight: "600" },
 
-  // Valodas slēdzis — horizontāli centrā (vienā līmenī visos ekrānos)
+  // Valodas slēdzis — centrā
   langBar: {
     alignSelf: "center",
     flexDirection: "row",
@@ -480,7 +476,7 @@ const styles = StyleSheet.create({
   langChipText: { color: "#cbd5e1", fontWeight: "700" },
   langChipTextActive: { color: "#fff" },
 
-  // Lai valodas josla būtu TIEŠI tajā pašā augstumā
+  // lai valodas josla būtu tajā pašā augstumā
   langLevelSpacer: { height: 6 },
 
   // HOME ekrāna pogu bloks
@@ -550,7 +546,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
   },
 
-  // Aktīvo malu enkuri
+  // Aktīvo malu enkuri (aug no pretējās puses tur, kur vajag)
   edgeBottomActive: {
     position: "absolute",
     bottom: 0,
@@ -572,20 +568,20 @@ const styles = StyleSheet.create({
   countText: { color: "#94a3b8", fontSize: 20, marginTop: 6, textAlign: "center" },
   status: { color: "#64748b", fontSize: 14, marginTop: 4, textAlign: "center" },
 
+  // Pogas (vienā stilā visā app)
   primaryBtn: {
     backgroundColor: "#4f46e5",
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 14,
-    ...(Platform.OS === "android" ? { minWidth: 120 } : null),
-    alignItems: "center",      // Start/Next centrēts
+    alignItems: "center",
     justifyContent: "center",
+    minWidth: 120,
   },
   primaryText: {
     color: "#fff",
-    fontWeight: Platform.OS === "android" ? undefined : "700",
     fontSize: 16,
-    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : null),
+    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : { fontWeight: "700" }),
   },
 
   ghostBtn: {
@@ -597,10 +593,11 @@ const styles = StyleSheet.create({
     borderColor: "#2b3140",
     minWidth: 120,
     alignItems: "center",
+    justifyContent: "center",
   },
   ghostText: {
     color: "#e2e8f0",
-    fontWeight: Platform.OS === "android" ? undefined : "600",
-    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : null),
+    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : { fontWeight: "600" }),
   },
 });
+
