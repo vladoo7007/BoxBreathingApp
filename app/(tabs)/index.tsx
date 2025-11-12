@@ -1,10 +1,3 @@
-// app/(tabs)/index.tsx
-// Expo + React Native + TypeScript
-// VISI KOMENTĀRI LATVIEŠU VALODĀ
-// Uzdevums: Onboarding (3 atsevišķas lapas bez skrolla) rādas KATRU startu.
-// Galvenais ekrāns = “zelta standarts” (TOP → RIGHT → BOTTOM → LEFT) — NETIEK MAINĪTS.
-// Valodas slēdzis LV/EN — centrā starp presetu pogām un kvadrātu (tajā pašā līmenī arī Onboarding).
-
 import React, {
   Dispatch,
   SetStateAction,
