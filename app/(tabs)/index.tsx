@@ -1,3 +1,5 @@
+// Sākuma ekrānam pielabots izkārtojums: virsraksts starp LV/EN un pogām.
+
 import React, {
   Dispatch,
   SetStateAction,
@@ -7,8 +9,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Animated, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
-
+import {
+  Animated,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 /* ===================== I18N / KONTEKSTS ===================== */
 
@@ -32,7 +41,7 @@ const TXT = {
     resume: "Start",
     pause: "Pauze",
     reset: "Restartēt",
-    // Onboarding teksti (īsi, skaidri)
+    // Onboarding teksti
     ob1_t: "Kas tas ir?",
     ob1_b: "Box Breathing — 4 fāzes: ieelpa, aizture, izelpa, aizture.",
     ob2_t: "Kā lietot",
@@ -42,6 +51,7 @@ const TXT = {
     next: "Tālāk",
     back: "Atpakaļ",
     start: "Start",
+    info: "Info",
   },
   en: {
     appTitle: "Box Breathing",
@@ -51,7 +61,7 @@ const TXT = {
     s: "s",
     running: "Running",
     paused: "Paused",
-    resume: "Resume",
+    resume: "Start",
     pause: "Pause",
     reset: "Reset",
     // Onboarding texts
@@ -64,6 +74,7 @@ const TXT = {
     next: "Next",
     back: "Back",
     start: "Start",
+    info: "Info",
   },
 } as const;
 
@@ -91,24 +102,75 @@ const LangBar: React.FC = () => {
 
 /* ===================== SAKNES MARŠRUTS ===================== */
 
-type Route = "onboarding" | "main";
+type Route = "home" | "onboarding" | "main";
 
 export default function Root() {
   const [lang, setLang] = useState<Lang>("lv"); // pēc noklusējuma LV
-  const [route, setRoute] = useState<Route>("onboarding"); // vienmēr sākam ar onboarding
+  const [route, setRoute] = useState<Route>("home"); // sākam ar Home
 
   return (
     <I18nCtx.Provider value={{ lang, setLang }}>
       <SafeAreaView style={styles.safer}>
-        {route === "onboarding" ? (
-          <Onboarding onDone={() => setRoute("main")} />
-        ) : (
-          <MainScreen />
+        {route === "home" && (
+          <HomeScreen onStart={() => setRoute("main")} onInfo={() => setRoute("onboarding")} />
         )}
+        {route === "onboarding" && <Onboarding onDone={() => setRoute("main")} />}
+        {route === "main" && <MainScreen />}
       </SafeAreaView>
     </I18nCtx.Provider>
   );
 }
+
+/* ===================== SĀKUMA EKRĀNS (AR LABOJUMIEM) ===================== */
+
+const HomeScreen: React.FC<{ onStart: () => void; onInfo: () => void }> = ({
+  onStart,
+  onInfo,
+}) => {
+  const { lang } = useI18n();
+  const t = TXT[lang];
+
+  return (
+    <View style={styles.screenWrap}>
+      {/* Valodas josla augšā */}
+      <View style={styles.langLevelSpacer} />
+      <LangBar />
+
+      {/* Virsraksts STARP valodām un pogām, lielāks */}
+      <Text style={styles.headerHome}>{t.appTitle}</Text>
+
+      {/* Divas pogas centrā */}
+      <View style={styles.homeCenter}>
+        <Pressable onPress={onStart} style={styles.primaryBtn}>
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 18,
+              ...(Platform.OS === "android"
+                ? { fontFamily: "sans-serif-medium" }
+                : { fontWeight: "700" }),
+            }}
+          >
+            {t.start}
+          </Text>
+        </Pressable>
+
+        <Pressable onPress={onInfo} style={styles.ghostBtn}>
+          <Text
+            style={{
+              color: "#e2e8f0",
+              ...(Platform.OS === "android"
+                ? { fontFamily: "sans-serif-medium" }
+                : { fontWeight: "600" }),
+            }}
+          >
+            {t.info}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 /* ===================== ONBOARDING (3 lapas bez skrolla) ===================== */
 
@@ -130,7 +192,7 @@ const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
     <View style={styles.screenWrap}>
       <Text style={styles.header}>{t.appTitle}</Text>
 
-      {/* Valodas slēdzis — tieši tajā pašā vertikālajā līmenī kā galvenajā */}
+      {/* Valodas slēdzis — tajā pašā vertikālajā līmenī */}
       <View style={styles.langLevelSpacer} />
       <LangBar />
 
@@ -145,11 +207,30 @@ const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           onPress={goBack}
           style={[styles.ghostBtn, step === 0 && { opacity: 0.35 }]}
         >
-          <Text style={styles.ghostText}>{t.back}</Text>
+          <Text
+            style={{
+              color: "#e2e8f0",
+              ...(Platform.OS === "android"
+                ? { fontFamily: "sans-serif-medium" }
+                : { fontWeight: "600" }),
+            }}
+          >
+            {t.back}
+          </Text>
         </Pressable>
 
         <Pressable onPress={step === 2 ? onDone : goNext} style={styles.primaryBtn}>
-          <Text style={styles.primaryText}>{step === 2 ? t.start : t.next}</Text>
+          <Text
+            style={{
+              color: "#fff",
+              fontSize: 16,
+              ...(Platform.OS === "android"
+                ? { fontFamily: "sans-serif-medium" }
+                : { fontWeight: "700" }),
+            }}
+          >
+            {step === 2 ? t.start : t.next}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -167,7 +248,7 @@ const MainScreen: React.FC = () => {
   const [phaseIndex, setPhaseIndex] = useState<number>(0); // 0=TOP (start no kreisā augšējā)
   const [leftSec, setLeftSec] = useState<number>(4);
 
-  // TOP → RIGHT → BOTTOM → LEFT (saglabājam “zelta standartu”)
+  // TOP → RIGHT → BOTTOM → LEFT (zelta standarts)
   const phases = useMemo(
     () => [
       { key: "inhale", label: lang === "lv" ? "Ieelpa" : "Inhale", secs: preset }, // 0: TOP
@@ -237,7 +318,7 @@ const MainScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Valoda — tieši šeit starp presetu blokiem un kvadrātu */}
+      {/* Valoda — starp presetu blokiem un kvadrātu */}
       <LangBar />
 
       {/* Kvadrāts ar perimetra animāciju (zelta standarts) */}
@@ -318,7 +399,16 @@ const Pill: React.FC<{ label: string; selected: boolean; onPress: () => void }> 
 
 const GhostButton: React.FC<{ label: string; onPress: () => void }> = ({ label, onPress }) => (
   <Pressable onPress={onPress} style={styles.ghostBtn}>
-    <Text style={styles.ghostText}>{label}</Text>
+    <Text
+      style={{
+        color: "#e2e8f0",
+        ...(Platform.OS === "android"
+          ? { fontFamily: "sans-serif-medium" }
+          : { fontWeight: "600" }),
+      }}
+    >
+      {label}
+    </Text>
   </Pressable>
 );
 
@@ -329,12 +419,23 @@ const styles = StyleSheet.create({
 
   screenWrap: { flex: 1, padding: 20 },
 
+  // vispārīgais virsraksts (Onboarding/Main)
   header: {
     color: "#fff",
     fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
     marginVertical: 6,
+  },
+
+  // JAUNAIS virsraksts tikai Home: lielāks un starp valodām/pogām
+  headerHome: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 16,
   },
 
   /* --- Preseti un valodas līmenis --- */
@@ -360,7 +461,7 @@ const styles = StyleSheet.create({
   },
   pillText: { color: "#cbd5e1", fontWeight: "600" },
 
-  // Valodas slēdzis — horizontāli centrā (vienā līmenī arī Onboarding)
+  // Valodas slēdzis — horizontāli centrā (vienā līmenī visos ekrānos)
   langBar: {
     alignSelf: "center",
     flexDirection: "row",
@@ -379,8 +480,16 @@ const styles = StyleSheet.create({
   langChipText: { color: "#cbd5e1", fontWeight: "700" },
   langChipTextActive: { color: "#fff" },
 
-  // Onboarding: lai valodas josla būtu TIEŠI tajā pašā augstumā
+  // Lai valodas josla būtu TIEŠI tajā pašā augstumā
   langLevelSpacer: { height: 6 },
+
+  // HOME ekrāna pogu bloks
+  homeCenter: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+  },
 
   // Onboarding kartīte
   onbCard: {
@@ -465,26 +574,19 @@ const styles = StyleSheet.create({
 
   primaryBtn: {
     backgroundColor: "#4f46e5",
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 14,
+    ...(Platform.OS === "android" ? { minWidth: 120 } : null),
+    alignItems: "center",      // Start/Next centrēts
+    justifyContent: "center",
   },
-primaryText: {
-  color: "#fff",
-  fontSize: 16,
-  ...(Platform.OS === "android"
-    ? { fontFamily: "sans-serif-medium" } 
-    : { fontWeight: "700" }),             
-},
-
-ghostText: {
-  color: "#e2e8f0",
-  ...(Platform.OS === "android"
-    ? { fontFamily: "sans-serif-medium" } 
-    : { fontWeight: "600" }),
-},
-
-
+  primaryText: {
+    color: "#fff",
+    fontWeight: Platform.OS === "android" ? undefined : "700",
+    fontSize: 16,
+    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : null),
+  },
 
   ghostBtn: {
     paddingHorizontal: 16,
@@ -496,5 +598,9 @@ ghostText: {
     minWidth: 120,
     alignItems: "center",
   },
-
+  ghostText: {
+    color: "#e2e8f0",
+    fontWeight: Platform.OS === "android" ? undefined : "600",
+    ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : null),
+  },
 });
