@@ -43,7 +43,6 @@ const TXT = {
     resume: "Sākt",
     pause: "Pauze",
     reset: "Restartēt",
-    // Onboarding teksti
     ob1_t: "Kas tas ir?",
     ob1_b: "Box Breathing — 4 fāzes: ieelpa, aizture, izelpa, aizture.",
     ob2_t: "Kā lietot",
@@ -193,7 +192,7 @@ const Onboarding: React.FC<{ onDone: () => void }> = ({ onDone }) => {
   );
 };
 
-/* ===================== GALVENĀ LAPA — ZELTA STANDARTS ===================== */
+/* ===================== GALVENĀ LAPA — NEPĀRTRAUKTA ANIMĀCIJA ===================== */
 
 const MainScreen: React.FC = () => {
   const { lang } = useI18n();
@@ -201,134 +200,163 @@ const MainScreen: React.FC = () => {
 
   const [preset, setPreset] = useState(4);
   const [isRunning, setIsRunning] = useState(false);
-  const [phaseIndex, setPhaseIndex] = useState(0); // 0: TOP
+
+  
+  const [phaseIndex, setPhaseIndex] = useState(0); // 0..3
   const [leftSec, setLeftSec] = useState(4);
 
-  // Fāzes (TOP → RIGHT → BOTTOM → LEFT)
+  // Kvadrata geometrija
+  const BOX = 220, BORDER = 10, FULL = BOX + BORDER * 2;
+  const PERIMETER = FULL * 4;
+
+  // Teksti
   const phases = useMemo(
     () => [
-      { key: "inhale", label: lang === "lv" ? "Ieelpa" : "Inhale", secs: preset }, // 0: TOP
-      { key: "hold1", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },  // 1: RIGHT
-      { key: "exhale", label: lang === "lv" ? "Izelpa" : "Exhale", secs: preset },// 2: BOTTOM
-      { key: "hold2", label: lang === "lv" ? "Aizture" : "Hold", secs: preset },  // 3: LEFT
+      { key: "inhale", label: lang === "lv" ? "Ieelpa" : "Inhale", secs: preset }, // TOP
+      { key: "hold1", label: lang === "lv" ? "Aizture" : "Hold",   secs: preset }, // RIGHT
+      { key: "exhale", label: lang === "lv" ? "Izelpa" : "Exhale", secs: preset }, // BOTTOM
+      { key: "hold2", label: lang === "lv" ? "Aizture" : "Hold",   secs: preset }, // LEFT
     ],
     [preset, lang]
   );
 
-  // === Анимация/таймер через дедлайн, без дрейфа ===
-  const edgeAnim = useRef(new Animated.Value(0)).current;
-  const animHandle = useRef<Animated.CompositeAnimation | null>(null);
+  /* ======= Nepartraukta animācija ======= */
+  const prog = useRef(new Animated.Value(0)).current; 
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
-  const isRunningRef = useRef(isRunning);
-  const phaseIdxRef = useRef(phaseIndex);
-  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
-  useEffect(() => { phaseIdxRef.current = phaseIndex; }, [phaseIndex]);
-
-  const phaseEndTsRef = useRef(0);
+  
+  const loopDurMsRef = useRef(preset * 4 * 1000);
+  const loopStartTsRef = useRef(0);      
+  const pausedFracRef = useRef(0);       
   const rafRef = useRef<number | null>(null);
 
-  // Точный “визуальный” тикающий счётчик (без setInterval)
-  const tick = () => {
-    const now = Date.now();
-    const msLeft = Math.max(0, phaseEndTsRef.current - now);
-    // округляем вверх, чтобы на старте фазы был «4», а не «3»
-    const secsLeft = Math.min(phases[phaseIdxRef.current].secs, Math.ceil(msLeft / 1000));
-    setLeftSec(secsLeft);
-    if (msLeft <= 0) return; // завершение обработает .start callback
-    rafRef.current = requestAnimationFrame(tick);
-  };
+const isRunningRef = useRef(isRunning);
+useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
 
-  const stopTick = () => {
+useEffect(() => {
+  loopDurMsRef.current = preset * 4 * 1000;
+
+  setPhaseIndex(0);
+  setLeftSec(preset);
+  stopRAF();
+  stopAnim();
+  prog.setValue(0);
+  pausedFracRef.current = 0;
+}, [preset, prog]); // ← добавляем prog
+
+
+  const stopAnim = () => {
+    animRef.current?.stop();
+    animRef.current = null;
+  };
+  const stopRAF = () => {
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
   };
 
-  // Запуск конкретной фазы (index)
-  const startPhase = (idx: number, remainingMs?: number) => {
-    const secs = phases[idx].secs;
+  // Precizs taimeris
+  const tick = () => {
+    const now = Date.now();
+    const elapsed = now - loopStartTsRef.current;
+    const dur = loopDurMsRef.current;
+    const sideDur = preset * 1000;
 
-    setPhaseIndex(idx);
-    // если передали точные миллисекунды — используем их; иначе полная длительность
-    const durationMs = remainingMs ?? secs * 1000;
+    // pozicija iekšā ciklā
+    const msInLoop = ((elapsed % dur) + dur) % dur;
+    const side = Math.floor(msInLoop / sideDur); // 0..3
+    const msIntoSide = msInLoop - side * sideDur;
 
-    // сброс перед стартом
-    stopTick();
-    edgeAnim.stopAnimation();
-    edgeAnim.setValue(0);
+    let secsLeft = preset - Math.floor(msIntoSide / 1000);
+    if (secsLeft < 1) secsLeft = 1; // never 0
 
-    // дедлайн и тикер
-    phaseEndTsRef.current = Date.now() + durationMs;
+    setPhaseIndex(side);
+    setLeftSec(secsLeft);
+
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  const startLoopFrom = (startFrac: number) => {
+    // sākuma animācija
+    prog.setValue(startFrac);
+    const remainMs = (1 - startFrac) * loopDurMsRef.current;
+
+    loopStartTsRef.current = Date.now() - startFrac * loopDurMsRef.current;
+    stopRAF();
     rafRef.current = requestAnimationFrame(tick);
 
-    // анимация
-    animHandle.current?.stop();
-    animHandle.current = Animated.timing(edgeAnim, {
+    stopAnim();
+    animRef.current = Animated.timing(prog, {
       toValue: 1,
-      duration: durationMs,
+      duration: remainMs,
       easing: Easing.linear,
-      useNativeDriver: false, // width/height — только JS
+      useNativeDriver: false, // mainam width/height
     });
 
-    animHandle.current.start(({ finished }) => {
+    animRef.current.start(({ finished }) => {
       if (!finished || !isRunningRef.current) return;
-      const next = (idx + 1) % phases.length;
-      startPhase(next); // бесшовный переход к следующей стороне
+      // cikls beidzas
+      startLoopFrom(0);
     });
   };
 
-  // Старт/пауза
   const toggleRun = () => {
     if (!isRunning) {
-      // RESUME / START
-      const now = Date.now();
-      let remain = phaseEndTsRef.current - now;
-      // если запуск с нуля или после reset/preset — берём полную фазу
-      if (remain <= 0 || remain > phases[phaseIdxRef.current].secs * 1000) {
-        remain = phases[phaseIdxRef.current].secs * 1000;
-      }
       setIsRunning(true);
-      startPhase(phaseIdxRef.current, remain);
+      startLoopFrom(pausedFracRef.current);
     } else {
-      // PAUSE
       setIsRunning(false);
-      animHandle.current?.stop();
-      stopTick();
-      const now = Date.now();
-      const msLeft = Math.max(0, phaseEndTsRef.current - now);
-      // фиксируем оставшиеся секунды, чтобы при паузе цифра не прыгала
-      setLeftSec(Math.min(phases[phaseIdxRef.current].secs, Math.ceil(msLeft / 1000)));
+      stopAnim();
+      stopRAF();
+      // sekundes
+      prog.stopAnimation((val?: number) => {
+        const v = typeof val === "number" ? val : 0;
+        pausedFracRef.current = Math.max(0, Math.min(1, v));
+
+        const sideDur = preset * 1000;
+        const msInLoop = pausedFracRef.current * loopDurMsRef.current;
+        const side = Math.floor(msInLoop / sideDur);
+        const msIntoSide = msInLoop - side * sideDur;
+
+        let secsLeft = preset - Math.floor(msIntoSide / 1000);
+        if (secsLeft < 1) secsLeft = 1;
+
+        setPhaseIndex(side);
+        setLeftSec(secsLeft);
+      });
     }
   };
 
-  // Reset
   const doReset = () => {
     setIsRunning(false);
+    stopAnim();
+    stopRAF();
+    prog.setValue(0);
+    pausedFracRef.current = 0;
     setPhaseIndex(0);
     setLeftSec(preset);
-    stopTick();
-    edgeAnim.stopAnimation();
-    edgeAnim.setValue(0);
-    phaseEndTsRef.current = 0;
   };
 
-  // Смена пресета — мягкий reset
   const setPresetAndReset = (n: number) => {
     setPreset(n);
-    // после изменения preset сразу в исходное
-    setIsRunning(false);
-    setPhaseIndex(0);
-    setLeftSec(n);
-    stopTick();
-    edgeAnim.stopAnimation();
-    edgeAnim.setValue(0);
-    phaseEndTsRef.current = 0;
+    doReset();
   };
 
-  // Геометрия квадрата
-  const BOX = 220, BORDER = 10, FULL = BOX + BORDER * 2;
-  const len = edgeAnim.interpolate({ inputRange: [0, 1], outputRange: [0, FULL] });
+  /* ======= Animacija nepartraukta ======= */
+  const activeLen = prog.interpolate({ inputRange: [0, 1], outputRange: [0, PERIMETER] });
+
+  const cover = (offset: number) =>
+    activeLen.interpolate({
+      inputRange: [0, offset, offset + FULL, PERIMETER],
+      outputRange: [0, 0, FULL, FULL],
+      extrapolate: "clamp",
+    });
+
+  const topCover = cover(0);           // TOP: left→right
+  const rightCover = cover(FULL);      // RIGHT: top→bottom
+  const bottomCover = cover(FULL * 2); // BOTTOM: right→left
+  const leftCover = cover(FULL * 3);   // LEFT: bottom→top
 
   return (
     <View style={styles.screenWrap}>
@@ -343,10 +371,10 @@ const MainScreen: React.FC = () => {
         </View>
       </View>
 
-      {/* Valoda — starp presetu blokiem un kvadrātu */}
+      {/* Valoda */}
       <LangBar />
 
-      {/* Kvadrāts ar perimetra animāciju */}
+      {/* Kvadrāts ar nepārtrauktu perimetra animāciju */}
       <View style={styles.centeredGrow}>
         <View style={[styles.boxWrap, { width: FULL, height: FULL }]}>
           <View style={[styles.boxCore, { width: BOX, height: BOX }]} />
@@ -357,23 +385,11 @@ const MainScreen: React.FC = () => {
           <View style={[styles.edgeBottom, { width: FULL, height: BORDER, opacity: 0.25 }]} />
           <View style={[styles.edgeLeft,   { height: FULL, width: BORDER, opacity: 0.25 }]} />
 
-          {/* aktīvās malas */}
-          {phaseIndex === 0 && (
-            // TOP: left→right
-            <Animated.View style={[styles.edgeTop, { width: len, height: BORDER }]} />
-          )}
-          {phaseIndex === 1 && (
-            // RIGHT: top→bottom
-            <Animated.View style={[styles.edgeRight, { height: len, width: BORDER }]} />
-          )}
-          {phaseIndex === 2 && (
-            // BOTTOM: right→left
-            <Animated.View style={[styles.edgeBottomActive, { width: len, height: BORDER }]} />
-          )}
-          {phaseIndex === 3 && (
-            // LEFT: bottom→top
-            <Animated.View style={[styles.edgeLeftActive, { height: len, width: BORDER }]} />
-          )}
+          {/* aktīvā nepārtrauktā līnija */}
+          <Animated.View style={[styles.edgeTop, { width: topCover, height: BORDER }]} />
+          <Animated.View style={[styles.edgeRight, { height: rightCover, width: BORDER }]} />
+          <Animated.View style={[styles.edgeBottomActive, { width: bottomCover, height: BORDER }]} />
+          <Animated.View style={[styles.edgeLeftActive, { height: leftCover, width: BORDER }]} />
         </View>
 
         <Text style={styles.phaseText}>{phases[phaseIndex].label}</Text>
@@ -416,7 +432,6 @@ const styles = StyleSheet.create({
 
   screenWrap: { flex: 1, padding: 20 },
 
-  // virsraksts (Onboarding/Main)
   header: {
     color: "#fff",
     fontSize: 22,
@@ -425,7 +440,6 @@ const styles = StyleSheet.create({
     marginVertical: 6,
   },
 
-  // virsraksts tikai Home
   headerHome: {
     color: "#fff",
     fontSize: 40,
@@ -457,7 +471,6 @@ const styles = StyleSheet.create({
   },
   pillText: { color: "#cbd5e1", fontWeight: "600" },
 
-  // Valodas slēdzis — centrā
   langBar: {
     alignSelf: "center",
     flexDirection: "row",
@@ -476,10 +489,8 @@ const styles = StyleSheet.create({
   langChipText: { color: "#cbd5e1", fontWeight: "700" },
   langChipTextActive: { color: "#fff" },
 
-  // lai valodas josla būtu tajā pašā augstumā
   langLevelSpacer: { height: 6 },
 
-  // HOME ekrāna pogu bloks
   homeCenter: {
     flex: 1,
     alignItems: "center",
@@ -487,7 +498,6 @@ const styles = StyleSheet.create({
     gap: 16,
   },
 
-  // Onboarding kartīte
   onbCard: {
     backgroundColor: "#141822",
     borderRadius: 16,
@@ -509,7 +519,6 @@ const styles = StyleSheet.create({
 
   centeredGrow: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  // Kvadrāts + pamatlīnijas
   boxWrap: { alignItems: "center", justifyContent: "center" },
   boxCore: { borderRadius: 14, backgroundColor: "rgba(255,255,255,0.04)" },
 
@@ -546,18 +555,17 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
   },
 
-  // Aktīvo malu enkuri (aug no pretējās puses tur, kur vajag)
   edgeBottomActive: {
     position: "absolute",
     bottom: 0,
-    right: 0, // aug no labās uz kreiso
+    right: 0,
     backgroundColor: "#22d3ee",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
   },
   edgeLeftActive: {
     position: "absolute",
-    bottom: 0, // aug no apakšas uz augšu
+    bottom: 0,
     left: 0,
     backgroundColor: "#22d3ee",
     borderTopLeftRadius: 16,
@@ -568,7 +576,6 @@ const styles = StyleSheet.create({
   countText: { color: "#94a3b8", fontSize: 20, marginTop: 6, textAlign: "center" },
   status: { color: "#64748b", fontSize: 14, marginTop: 4, textAlign: "center" },
 
-  // Pogas (vienā stilā visā app)
   primaryBtn: {
     backgroundColor: "#4f46e5",
     paddingHorizontal: 24,
@@ -600,4 +607,3 @@ const styles = StyleSheet.create({
     ...(Platform.OS === "android" ? { fontFamily: "sans-serif-medium" } : { fontWeight: "600" }),
   },
 });
-
